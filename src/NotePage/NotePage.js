@@ -1,5 +1,6 @@
 import React from 'react';
 import Note from '../Note/Note';
+import NotefulContext from '../NotefulContext';
 
 
 
@@ -8,10 +9,13 @@ class NotePage extends React.Component {
         note: {content: ""}
     }
 
+    static contextType = NotefulContext;
+
     render() {
         
+        
         console.log(this.props.match.params.noteId);
-        const thisNote = this.props.notes.find(note=> note.id === this.props.match.params.noteId);
+        const thisNote = this.context.notes.find(note=> note.id === this.props.match.params.noteId);
         console.log(thisNote);
         console.log(this.props)
         return(

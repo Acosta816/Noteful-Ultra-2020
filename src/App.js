@@ -1,10 +1,12 @@
 import React from 'react';
-import { Route, NavLink, Link, Switch } from 'react-router-dom';
-import store from './store';
+import { Route, NavLink, Link, Switch, withRouter } from 'react-router-dom';
+import './App.css';
+import ghost from './config';
 import FolderNav from './FolderNav/FolderNav';
 import NoteLinks from './NoteLinks/NoteLInks';
 import NotePage from './NotePage/NotePage';
 import NotePageNav from './NotePageNav/NotePageNav';
+import NotefulContext from './NotefulContext';
 
 
 class App extends React.Component {
@@ -17,21 +19,90 @@ class App extends React.Component {
     }
   }
 
+
+
   componentDidMount() {
 
-    this.setState(store);
+	this.fetchNotesAndFolders();
   }
+
+  fetchNotesAndFolders = ()=> {
+	const { foldersUrl, notesUrl } = ghost;
+
+	this.fetchResources(notesUrl,"notes");
+	this.fetchResources(foldersUrl,"folders");
+  }
+
+  //This function fetches the notes and folders arrays and sets state. You should use this to force a rerender after adding or deleting any new notes and folders
+  fetchResources = (url,stateKey)=> {
+	//set up the options  
+	const options = {
+		method: "GET",
+		headers: {
+			'content-type': 'application/json',
+		}
+	}
+
+	//fetch the resourses at the endpoint passed in (url) and setState at the key passed in (stateKey)
+	fetch(url, options)
+	.then(res => {
+		if (!res.ok) {
+		  // get the error message from the response,
+		  return res.json().then(error => {
+			// then throw it
+			throw error
+		  })
+		}
+		return res.json()
+	  })
+	  .then(data=> {
+		  this.setState({
+			  [stateKey]: data
+		  })
+	  })
+	  
+	  
+  } //END of fetchResources()
+
+  deleteNote = (noteId)=> {
+	console.log(this.props);
+
+	this.props.history.push("/") //Send us back to main list view because the current route wont exist anymore if deleting on NotePage. (in order to access history routeprop, we needed to export withRouter(App) )
+
+	console.log(noteId);
+	const { notesUrl } = ghost;
+	const url = `${notesUrl}/${noteId}`;
+	const options = {
+		method: "DELETE",
+		headers: {
+			'content-type': 'application/json',
+		  }
+	}
+	//now we fetch (delete) the note
+	fetch(url,options)
+	.then(res => {
+		if (!res.ok) {
+		  throw new Error(res.status)
+		}
+		return res.json()
+	  })
+	  .then(data=> {
+		  console.log(data);
+		  this.fetchNotesAndFolders();
+	  })
+	
+
+	
+
+  } //=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-END OF deleteNote()-=-=-=-=-=-=-=-=-=-==-=-=-=-=-=-=-=-=-=-=-=
+
 
   renderNavRoutes = ()=> {
 	  //render the different sidebar navigation views for all paths...
-	  const { notes, folders } = this.state;
+	  
 	  const folderNavRoutes = ['/', '/folder/:folderId'].map(path=> {
 		  return(
-			  <Route exact path={path} key={path} render={routeProps => {
-				  return (
-					  <FolderNav  folders={folders} notes={notes} {...routeProps} />      //{...routeProps} is just a shorthand for including the routeProps in there the same way we would using withRouter()
-				  )
-			  }} />
+			  <Route exact path={path} key={path} component={FolderNav} />
 		  )
 	  });
 
@@ -80,40 +151,50 @@ class App extends React.Component {
 
   renderNotePageMain = ()=> {
 	  return (
-		  <Route path={'/note/:noteId'} render={routeProps=> {
-			  return(
-				  <NotePage notes={this.state.notes} {...routeProps} />
-			  )
-		  }} />
+		  <Route path={'/note/:noteId'} component={NotePage} />
 	  )
   }
 
 
 
+  
+
 
   render() {
-    console.log(this.state);
+
+
+//================================================CONTEXT BASKET========================================================================================================
+	const contextValue = {
+		folders: this.state.folders,
+		notes: this.state.notes,
+		deleteNote: this.deleteNote,
+	}
+//================================================CONTEXT BASKET========================================================================================================
+	console.log(contextValue);
+
     return(
-      <div className="App">
-        <nav className="App__nav">
-          {this.renderNavRoutes()}
-        </nav>
+		<NotefulContext.Provider value={contextValue}>
+			<div className="App">
+				<nav className="App__nav">
+				{this.renderNavRoutes()}
+				</nav>
 
-        <header className="App__header">
-          <h1>
-            <Link to="/">Noteful</Link>{' '}
-            {/* insert fontawesome icon in here for doubleCheck logo (purely aesthetic) */}
-          </h1>
-        </header>
+				<header className="App__header">
+					<h1>
+						<Link to="/">Noteful</Link>{' '}
+					</h1>
+				</header>
 
-        <main className="App__main">
-			{this.renderNoteLinks()}
-			{this.renderNotePageMain()}
-		</main>
+				<main className="App__main">
+					{this.renderNoteLinks()}
+					{this.renderNotePageMain()}
+				</main>
 
       </div>
+		</NotefulContext.Provider>
+
     )
   }
 }
 
-export default App;
+export default withRouter(App);
